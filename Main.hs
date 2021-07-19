@@ -1,9 +1,12 @@
-import Text.Regex.PCRE as R
-import qualified Data.Text as T
-import qualified Data.Map as M
-import Numeric (showHex, showIntAtBase)
 import Data.Char (intToDigit)
 import Data.Maybe (isJust)
+import Numeric (showHex, showIntAtBase)
+import Text.Printf
+import Text.Regex.PCRE as R
+import qualified Data.Map as M
+import qualified Data.Text as T
+import Data.Binary as B
+import Data.Word as W
 
 
 -- The LC-3 ISA, from "Appendix A", available at:
@@ -84,11 +87,28 @@ operands = [
     ("PUTSP", "1111000000100100"),
     ("HALT", "1111000000100101")]
 
-directives = [(".ORIG", ""), (".FILL", ""), (".BLKW", ""), (".STRINGZ", ""), (".END","")]
+directives = [
+    (".ORIG", ""),
+    (".FILL", ""),
+    (".BLKW", ""),
+    (".STRINGZ", ""),
+    (".END","")]
 
+
+registers = [
+    ("R0", "000"),
+    ("R1", "001"),
+    ("R2", "010"),
+    ("R3", "011"),
+    ("R4", "100"),
+    ("R5", "101"),
+    ("R6", "110"),
+    ("R7", "111")
+            ]
 
 operandsMap = M.fromList operands
 directivesMap = M.fromList directives
+registersMap = M.fromList registers
 
 whiteTextRegex = "[^\\s\"\']+|\"([^\"]*)\"|\'([^\']*)\'\r\n"
 
@@ -135,44 +155,49 @@ getFirstAddress (x:_) =
     read  (tail (x !! 1)) :: Integer 
 
 
-firstPass :: [[String]] -> M.Map String String -> Integer -> M.Map String String
+firstPass :: [[String]] -> M.Map String Integer -> Integer -> M.Map String Integer 
 firstPass [] resultSymbolicMap _ = resultSymbolicMap
 firstPass (x:xs) resultSymbolicMap currentAddress 
   | foundResult = firstPass xs resultSymbolicMap (currentAddress + 1)
   | otherwise  = do 
-                firstPass xs (M.insert currentHead (showIntAtBase 2 intToDigit (currentAddress + 1) "") resultSymbolicMap) (currentAddress + 1)
+                firstPass xs (M.insert currentHead (currentAddress + 1) resultSymbolicMap) (currentAddress + 1)
   where currentHead = head x
         foundResult = isJust (M.lookup currentHead operandsMap) || isJust (M.lookup currentHead directivesMap)
 
 
 
+tokenToBinary :: String -> M.Map String Integer -> Integer -> String
+tokenToBinary [] _ _ = ""
+tokenToBinary token symbolsMap currentAddress
+  | Just x <- M.lookup token symbolsMap = 
+  | Just x <- M.lookup token directivesMap = x
+  | Just x <- M.lookup token operandsMap = x
+  | Just x <- M.lookup token registersMap = x
+      -- TODO: CHANGE!!
+  | otherwise = ""
 
-assembleLine :: [String] -> M.Map String String -> Integer -> String -> String
+
+assembleLine :: [String] -> M.Map String Integer -> Integer -> String
 -- this edge case never happens tho
-assembleLine [] _ _ _ = ""
-assembleLine (x:xs) symbolsMap currentAddress resultString =
+assembleLine [] _ _ = ""
+assembleLine (x:xs) symbolsMap currentAddress
+  | isJust (M.lookup x symbolsMap) = assembleLine xs symbolsMap currentAddress 
+  | otherwise = concatMap (\ x -> tokenToBinary x symbolsMap currentAddress) (x:xs)
     
-
-
-
 -- Oneliners btw
-
-secondPass :: [[String]] -> M.Map String String -> Integer -> String -> String
-secondPass [] _ _ resultString = foldl (++) "" (reverse resultString)
-secondPass (x:xs) symbolsMap currentAddress resultString
-  | isJust (M.lookup currentHead symbolsMap) = secondPass symbolsMap currentAddress resultString
-  | otherwise = let resultLine = assembleLine 
-
-
-
-
+secondPass :: [[String]] -> M.Map String Integer -> Integer -> [String] -> String
+secondPass [] _ _ resultString = concat (reverse resultString)
+secondPass (x:xs) symbolsMap currentAddress resultString = do 
+                let resultLine = assembleLine x symbolsMap currentAddress
+                secondPass xs symbolsMap (currentAddress + 1) (resultLine : resultString)
 
 main :: IO ()
 main = readLines "sample/2048.asm" >>= \s -> 
     do
         let result = prepareForRead s
         let firstAddress = getFirstAddress result
-        print result
-        print (firstPass result M.empty firstAddress)
+        let resultingMap = firstPass result M.empty firstAddress
+        let resultBinary = secondPass result resultingMap firstAddress []
+        print resultBinary
 
 
