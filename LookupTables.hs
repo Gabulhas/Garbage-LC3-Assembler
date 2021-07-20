@@ -4,7 +4,10 @@ module LookupTables(
     directivesMap,
     getDirective,
     getRegister,
-    getOpcode
+    getOpcode,
+    justGetRegister,
+    justGetOpcode,
+    justGetDirective
 ) where
 
 import qualified Data.Map as M
@@ -77,7 +80,20 @@ getDirective :: String -> Maybe String
 getDirective key = M.lookup key directivesMap
 
 
+justGetRegister :: String -> String
+justGetRegister key 
+  | Just val <- getRegister key = val
+  | otherwise = error "Could not find Register"
 
+justGetOpcode :: String -> String
+justGetOpcode key 
+  | Just val <- getOpcode key = val
+  | otherwise = error "Could not find Opcode"
+
+justGetDirective :: String -> String
+justGetDirective key 
+  | Just val <- getDirective key = val
+  | otherwise = error "Could not find Directive"
 
 
 

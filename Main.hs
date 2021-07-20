@@ -8,7 +8,7 @@ import qualified Data.Text as T
 import Data.Binary as B
 import Data.Word as W
 import OpTransform (assembleLine)
-import LookupTables (getOperand, getRegister, getDirective)
+import LookupTables (getOpcode, getRegister, getDirective)
 
 
 whiteTextRegex = "[^\\s\"\']+|\"([^\"]*)\"|\'([^\']*)\'\r\n"
@@ -71,7 +71,7 @@ handleLine :: [String] -> M.Map String Integer -> Integer -> String
 handleLine [] _ _ = ""
 handleLine (x:xs) symbolsMap currentAddress
   | isJust (M.lookup x symbolsMap) = handleLine xs symbolsMap currentAddress 
-  | otherwise = assembleLine xs symbolsMap currentAddress
+  | otherwise = assembleLine (x:xs) symbolsMap currentAddress
     
 -- Oneliners btw
 secondPass :: [[String]] -> M.Map String Integer -> Integer -> [String] -> String
@@ -81,9 +81,10 @@ secondPass (x:xs) symbolsMap currentAddress resultString = do
                 secondPass xs symbolsMap (currentAddress + 1) (resultLine : resultString)
 
 main :: IO ()
-main = readLines "sample/2048.asm" >>= \s -> 
+main = readLines "sample/basic.asm" >>= \s -> 
     do
         let result = prepareForRead s
+        print result
         let firstAddress = getFirstAddress result
         let resultingMap = firstPass result M.empty firstAddress
         print resultingMap
