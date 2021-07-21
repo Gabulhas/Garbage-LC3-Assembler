@@ -27,6 +27,7 @@ opcodes = [
     ("BRZP", ""),
     ("JMP", ""),
     ("RET", ""),
+    ("JSR", ""),
     ("JSRR", ""),
     ("LD", ""),
     ("LDI", ""),
@@ -94,11 +95,3 @@ justGetDirective :: String -> String
 justGetDirective key 
   | Just val <- getDirective key = val
   | otherwise = error "Could not find Directive"
-
-
-
-
-
-
-
-

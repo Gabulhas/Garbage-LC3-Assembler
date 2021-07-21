@@ -1,7 +1,7 @@
 module OpTransform(
     assembleLine
 ) where
-import AssemblerUtils (intToSignExt, offsetCalculate, immediateValueToInt)
+import AssemblerUtils (intToSignExt, offsetCalculate, immediateValueToInt, labelOrOffsetToBinary, invalidOperands, trapValueToBin)
 import LookupTables (getOpcode, getRegister, getDirective, justGetRegister, justGetOpcode, justGetDirective)
 import Data.Bits 
 import qualified Data.Map as M
@@ -69,23 +69,25 @@ assembleLine (opcode:operands) symbolsMap currentAddress
   | opcode ==  "BRZP" = brop "011" (last operands) symbolsMap currentAddress
   | opcode ==  "JMP" =   jmpop (head operands) 
   | opcode ==  "RET" =   "1100000111000000"
---  | opcode ==  "JSRR" =  jsrrop operands symbolsMap currentAddress
---  | opcode ==  "LD" =    ldop operands symbolsMap currentAddress
---  | opcode ==  "LDI" =   ldiop operands symbolsMap currentAddress
---  | opcode ==  "LDR" =   ldrop operands symbolsMap currentAddress
---  | opcode ==  "LEA" =   leaop operands symbolsMap currentAddress
---  | opcode ==  "NOT" =   notop operands symbolsMap currentAddress
+  | opcode ==  "JSR" =  jsrop (head operands) symbolsMap currentAddress
+  | opcode ==  "JSRR" =  jsrrop (head operands)
+  | opcode ==  "LD" =    ldop operands symbolsMap currentAddress
+  | opcode ==  "LDI" =   ldiop operands symbolsMap currentAddress
+  | opcode ==  "LDR" =   ldrop operands symbolsMap currentAddress
+  | opcode ==  "LEA" =   leaop operands symbolsMap currentAddress
+  | opcode ==  "NOT" =   notop operands 
   | opcode ==  "RTI" =   "1000000000000000"
---  | opcode ==  "ST" =    stop operands symbolsMap currentAddress
---  | opcode ==  "STI" =   stiop operands symbolsMap currentAddress
---  | opcode ==  "STR" =   strop operands symbolsMap currentAddress
---  | opcode ==  "TRAP" =  trapop operands symbolsMap currentAddress
---  | opcode ==  "GETC" =  getcop operands symbolsMap currentAddress
---  | opcode ==  "OUT" =   outop operands symbolsMap currentAddress
---  | opcode ==  "PUTS" =  putsop operands symbolsMap currentAddress
---  | opcode ==  "IN" =    inop operands symbolsMap currentAddress
---  | opcode ==  "PUTSP" = putspop operands symbolsMap currentAddress
---  | opcode ==  "HALT" =  haltop operands symbolsMap currentAddress
+  | opcode ==  "ST" =    stop operands symbolsMap currentAddress
+  | opcode ==  "STI" =   stiop operands symbolsMap currentAddress
+  | opcode ==  "STR" =   strop operands symbolsMap currentAddress
+  | opcode ==  "TRAP" =  trapop (head operands)
+  | opcode ==  "GETC" =  trapop "x20"
+  | opcode ==  "OUT" =   trapop "x21"
+  | opcode ==  "PUTS" =  trapop "x22"
+  | opcode ==  "IN" =    trapop "x23"
+  | opcode ==  "PUTSP" = trapop "x24"
+  | opcode ==  "HALT" =  trapop "x25"
+  | opcode ==  "NONE" =  "1101"
   | otherwise = error ("Invalid opcode '"  ++ opcode ++ "'")
 
 
@@ -117,28 +119,66 @@ andop operands
 
 
 brop :: String -> String -> M.Map String Int -> Int -> String
-brop brType offsetOrLabel symbolsMap currentAddress 
-  | head offsetOrLabel == '#' = firstPart ++ intToSignExt  (immediateValueToInt offsetOrLabel) 9
-  | Just resultAddress <- M.lookup offsetOrLabel symbolsMap = firstPart ++  intToSignExt (offsetCalculate resultAddress currentAddress) 9
- 
-  | otherwise = error "Not an offset nor a label"
-   where firstPart = "0000" ++ brType
+brop brType labelOrOffset symbolsMap currentAddress =
+    "0000" ++ brType ++ labelOrOffsetToBinary labelOrOffset  symbolsMap currentAddress 9
 
 jmpop :: String -> String
 jmpop reg = "1100000" ++ justGetRegister reg ++ "000000"
 
 
+jsrop :: String -> M.Map String Int -> Int -> String
+jsrop labelOrOffset symbolsMap currentAddress =
+    "01001" ++ labelOrOffsetToBinary labelOrOffset symbolsMap currentAddress 11
 
--- jsrrop :: [String] -> M.Map String Int -> Int -> String
--- ldop :: [String] -> M.Map String Int -> Int -> String
--- ldiop :: [String] -> M.Map String Int -> Int -> String
--- ldrop :: [String] -> M.Map String Int -> Int -> String
--- leaop :: [String] -> M.Map String Int -> Int -> String
--- notop :: [String] -> M.Map String Int -> Int -> String
--- stop :: [String] -> M.Map String Int -> Int -> String
--- stiop :: [String] -> M.Map String Int -> Int -> String
--- strop :: [String] -> M.Map String Int -> Int -> String
--- trapop :: [String] -> M.Map String Int -> Int -> String
+jsrrop :: String -> String
+jsrrop reg = "0100000" ++ justGetRegister reg ++ "000000"
+  
+ldop :: [String] -> M.Map String Int -> Int -> String
+ldop (dr:labelOrOffset:_) symbolsMap currentAddress =
+    "0010" ++ justGetRegister dr ++ labelOrOffsetToBinary labelOrOffset symbolsMap currentAddress 9
+ldop operands _ _ = error (invalidOperands operands)
+
+ldiop :: [String] -> M.Map String Int -> Int -> String
+ldiop (dr:labelOrOffset:_) symbolsMap currentAddress =
+    "1010" ++ justGetRegister dr ++ labelOrOffsetToBinary labelOrOffset symbolsMap currentAddress 9
+ldiop operands _ _ = error (invalidOperands operands)
+
+ldrop :: [String] -> M.Map String Int -> Int -> String
+ldrop (dr:baser:labelOrOffset:_) symbolsMap currentAddress =
+    "0110" ++ justGetRegister dr ++ justGetRegister baser ++ labelOrOffsetToBinary labelOrOffset symbolsMap currentAddress 6
+ldrop operands _ _ = error (invalidOperands operands)
+
+leaop :: [String] -> M.Map String Int -> Int -> String
+leaop (dr:labelOrOffset:_) symbolsMap currentAddress =
+    "1110" ++ justGetRegister dr ++ labelOrOffsetToBinary labelOrOffset symbolsMap currentAddress 9
+leaop operands _ _ = error (invalidOperands operands)
+
+
+notop :: [String] -> String
+notop (dr:sr:_) =
+    "1001" ++ justGetRegister dr ++ justGetRegister sr ++ "111111"
+notop operands = error (invalidOperands operands)
+
+stop :: [String] -> M.Map String Int -> Int -> String
+stop (sr:labelOrOffset:_) symbolsMap currentAddress =
+    "0011" ++ justGetRegister sr ++ labelOrOffsetToBinary labelOrOffset symbolsMap currentAddress 9
+stop operands _ _ = error (invalidOperands operands)
+
+
+stiop :: [String] -> M.Map String Int -> Int -> String
+stiop (sr:labelOrOffset:_) symbolsMap currentAddress =
+    "1011" ++ justGetRegister sr ++ labelOrOffsetToBinary labelOrOffset symbolsMap currentAddress 9
+stiop operands _ _ = error (invalidOperands operands)
+
+strop :: [String] -> M.Map String Int -> Int -> String
+strop (sr:baser:labelOrOffset:_) symbolsMap currentAddress =
+    "0111" ++ justGetRegister sr ++ justGetRegister baser ++ labelOrOffsetToBinary labelOrOffset symbolsMap currentAddress 6
+strop operands _ _ = error (invalidOperands operands)
+
+
+trapop :: String -> String
+trapop val =
+    "11110000" ++ trapValueToBin val
 -- getcop :: [String] -> M.Map String Int -> Int -> String
 -- outop :: [String] -> M.Map String Int -> Int -> String
 -- putsop :: [String] -> M.Map String Int -> Int -> String

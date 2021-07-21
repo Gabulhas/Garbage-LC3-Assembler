@@ -1,4 +1,5 @@
 import Data.Char (intToDigit)
+import Data.List
 import Data.Maybe (isJust)
 import Numeric (showHex, showIntAtBase)
 import Text.Printf
@@ -75,7 +76,7 @@ handleLine (x:xs) symbolsMap currentAddress
     
 -- Oneliners btw
 secondPass :: [[String]] -> M.Map String Int -> Int -> [String] -> String
-secondPass [] _ _ resultString = concat (reverse resultString)
+secondPass [] _ _ resultString = unwords (reverse resultString)
 secondPass (x:xs) symbolsMap currentAddress resultString = do 
                 let resultLine = handleLine x symbolsMap currentAddress
                 secondPass xs symbolsMap (currentAddress + 1) (resultLine : resultString)
