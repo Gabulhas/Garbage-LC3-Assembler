@@ -1,8 +1,9 @@
 module OpTransform(
     assembleLine
 ) where
-import AssemblerUtils (imm5)
+import AssemblerUtils (intToSignExt, offsetCalculate, immediateValueToInt)
 import LookupTables (getOpcode, getRegister, getDirective, justGetRegister, justGetOpcode, justGetDirective)
+import Data.Bits 
 import qualified Data.Map as M
 
 -- The LC-3 ISA, from "Appendix A", available at:
@@ -53,28 +54,28 @@ import qualified Data.Map as M
 
 
 
-assembleLine :: [String] -> M.Map String Integer -> Integer -> String
+assembleLine :: [String] -> M.Map String Int -> Int -> String
 assembleLine [] _ _ = ""
 assembleLine (opcode:operands) symbolsMap currentAddress
   | opcode ==  "ADD" =   addop operands
   | opcode ==  "AND" =   andop operands 
---  | opcode ==  "BRN" =   brnop operands symbolsMap currentAddress
---  | opcode ==  "BRZ" =   brzop operands symbolsMap currentAddress
---  | opcode ==  "BRP" =   brpop operands symbolsMap currentAddress
---  | opcode ==  "BR" =    brop operands symbolsMap currentAddress
---  | opcode ==  "BRZP" =  brzpop operands symbolsMap currentAddress
---  | opcode ==  "BRNP" =  brnpop operands symbolsMap currentAddress
---  | opcode ==  "BRNZ" =  brnzop operands symbolsMap currentAddress
---  | opcode ==  "BRNZP" = brnzpop operands symbolsMap currentAddress
---  | opcode ==  "JMP" =   jmpop operands symbolsMap currentAddress
---  | opcode ==  "RET" =   "1100000111000000"
+  | opcode ==  "BR" = brop "111" (last operands) symbolsMap currentAddress
+  | opcode ==  "BRN" = brop "100" (last operands) symbolsMap currentAddress
+  | opcode ==  "BRNP" = brop "101" (last operands) symbolsMap currentAddress
+  | opcode ==  "BRNZ" = brop "110" (last operands) symbolsMap currentAddress
+  | opcode ==  "BRNZP" = brop "111" (last operands) symbolsMap currentAddress
+  | opcode ==  "BRP" = brop "001" (last operands) symbolsMap currentAddress
+  | opcode ==  "BRZ" = brop "010" (last operands) symbolsMap currentAddress
+  | opcode ==  "BRZP" = brop "011" (last operands) symbolsMap currentAddress
+  | opcode ==  "JMP" =   jmpop (head operands) 
+  | opcode ==  "RET" =   "1100000111000000"
 --  | opcode ==  "JSRR" =  jsrrop operands symbolsMap currentAddress
 --  | opcode ==  "LD" =    ldop operands symbolsMap currentAddress
 --  | opcode ==  "LDI" =   ldiop operands symbolsMap currentAddress
 --  | opcode ==  "LDR" =   ldrop operands symbolsMap currentAddress
 --  | opcode ==  "LEA" =   leaop operands symbolsMap currentAddress
 --  | opcode ==  "NOT" =   notop operands symbolsMap currentAddress
---  | opcode ==  "RTI" =   "1000000000000000"
+  | opcode ==  "RTI" =   "1000000000000000"
 --  | opcode ==  "ST" =    stop operands symbolsMap currentAddress
 --  | opcode ==  "STI" =   stiop operands symbolsMap currentAddress
 --  | opcode ==  "STR" =   strop operands symbolsMap currentAddress
@@ -85,7 +86,7 @@ assembleLine (opcode:operands) symbolsMap currentAddress
 --  | opcode ==  "IN" =    inop operands symbolsMap currentAddress
 --  | opcode ==  "PUTSP" = putspop operands symbolsMap currentAddress
 --  | opcode ==  "HALT" =  haltop operands symbolsMap currentAddress
-  | otherwise = error "INVALID OPCODE" 
+  | otherwise = error ("Invalid opcode '"  ++ opcode ++ "'")
 
 
 addop :: [String] -> String
@@ -95,7 +96,7 @@ addop operands
   | Just resultRegister <- getRegister lastOperand = do
       firstPart ++ "000" ++ resultRegister
   | otherwise = do
-      firstPart ++ "1" ++ imm5 lastOperand 
+      firstPart ++ "1" ++  intToSignExt (immediateValueToInt lastOperand) 5
   where lastOperand = last operands
         (dr:sr1:_) = operands 
         firstPart = "0001" ++ justGetRegister dr ++ justGetRegister sr1
@@ -107,39 +108,41 @@ andop operands
   | Just resultRegister <- getRegister lastOperand = do
       firstPart ++ "000" ++ resultRegister
   | otherwise = do
-      firstPart ++ "1" ++ imm5 lastOperand 
+      firstPart ++ "1" ++ intToSignExt (immediateValueToInt lastOperand) 5
   where lastOperand = last operands
         (dr:sr1:_) = operands 
         firstPart = "0101" ++ justGetRegister dr ++ justGetRegister sr1
 
 
 
--- 
--- brnop :: [String] -> M.Map String Integer -> Integer -> String
--- brzop :: [String] -> M.Map String Integer -> Integer -> String
--- brpop :: [String] -> M.Map String Integer -> Integer -> String
--- brop :: [String] -> M.Map String Integer -> Integer -> String
--- brzpop :: [String] -> M.Map String Integer -> Integer -> String
--- brnpop :: [String] -> M.Map String Integer -> Integer -> String
--- brnzop :: [String] -> M.Map String Integer -> Integer -> String
--- brnzpop :: [String] -> M.Map String Integer -> Integer -> String
--- jmpop :: [String] -> M.Map String Integer -> Integer -> String
--- retop :: [String] -> M.Map String Integer -> Integer -> String
--- jsrrop :: [String] -> M.Map String Integer -> Integer -> String
--- ldop :: [String] -> M.Map String Integer -> Integer -> String
--- ldiop :: [String] -> M.Map String Integer -> Integer -> String
--- ldrop :: [String] -> M.Map String Integer -> Integer -> String
--- leaop :: [String] -> M.Map String Integer -> Integer -> String
--- notop :: [String] -> M.Map String Integer -> Integer -> String
--- rtiop :: [String] -> M.Map String Integer -> Integer -> String
--- stop :: [String] -> M.Map String Integer -> Integer -> String
--- stiop :: [String] -> M.Map String Integer -> Integer -> String
--- strop :: [String] -> M.Map String Integer -> Integer -> String
--- trapop :: [String] -> M.Map String Integer -> Integer -> String
--- getcop :: [String] -> M.Map String Integer -> Integer -> String
--- outop :: [String] -> M.Map String Integer -> Integer -> String
--- putsop :: [String] -> M.Map String Integer -> Integer -> String
--- inop :: [String] -> M.Map String Integer -> Integer -> String
--- putspop :: [String] -> M.Map String Integer -> Integer -> String
--- haltop :: [String] -> M.Map String Integer -> Integer -> String
+
+brop :: String -> String -> M.Map String Int -> Int -> String
+brop brType offsetOrLabel symbolsMap currentAddress 
+  | head offsetOrLabel == '#' = firstPart ++ intToSignExt  (immediateValueToInt offsetOrLabel) 9
+  | Just resultAddress <- M.lookup offsetOrLabel symbolsMap = firstPart ++  intToSignExt (offsetCalculate resultAddress currentAddress) 9
+ 
+  | otherwise = error "Not an offset nor a label"
+   where firstPart = "0000" ++ brType
+
+jmpop :: String -> String
+jmpop reg = "1100000" ++ justGetRegister reg ++ "000000"
+
+
+
+-- jsrrop :: [String] -> M.Map String Int -> Int -> String
+-- ldop :: [String] -> M.Map String Int -> Int -> String
+-- ldiop :: [String] -> M.Map String Int -> Int -> String
+-- ldrop :: [String] -> M.Map String Int -> Int -> String
+-- leaop :: [String] -> M.Map String Int -> Int -> String
+-- notop :: [String] -> M.Map String Int -> Int -> String
+-- stop :: [String] -> M.Map String Int -> Int -> String
+-- stiop :: [String] -> M.Map String Int -> Int -> String
+-- strop :: [String] -> M.Map String Int -> Int -> String
+-- trapop :: [String] -> M.Map String Int -> Int -> String
+-- getcop :: [String] -> M.Map String Int -> Int -> String
+-- outop :: [String] -> M.Map String Int -> Int -> String
+-- putsop :: [String] -> M.Map String Int -> Int -> String
+-- inop :: [String] -> M.Map String Int -> Int -> String
+-- putspop :: [String] -> M.Map String Int -> Int -> String
+-- haltop :: [String] -> M.Map String Int -> Int -> String
 

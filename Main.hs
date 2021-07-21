@@ -50,23 +50,23 @@ prepareForRead text_lines =
     reverse (clean text_lines [])
 
 
-getFirstAddress :: [[String]] -> Integer 
+getFirstAddress :: [[String]] -> Int 
 getFirstAddress [] = -1
 getFirstAddress (x:_) = 
-    read  (tail (x !! 1)) :: Integer 
+    read  (tail (x !! 1)) :: Int 
 
 
-firstPass :: [[String]] -> M.Map String Integer -> Integer -> M.Map String Integer 
+firstPass :: [[String]] -> M.Map String Int -> Int -> M.Map String Int 
 firstPass [] resultSymbolicMap _ = resultSymbolicMap
 firstPass (x:xs) resultSymbolicMap currentAddress 
   | foundResult = firstPass xs resultSymbolicMap (currentAddress + 1)
   | otherwise  = do 
-                firstPass xs (M.insert currentHead currentAddress resultSymbolicMap) currentAddress
+                firstPass xs (M.insert currentHead currentAddress resultSymbolicMap) (currentAddress + 1)
   where currentHead = head x
         foundResult = isJust (getOpcode currentHead) || isJust (getDirective currentHead)
 
 
-handleLine :: [String] -> M.Map String Integer -> Integer -> String
+handleLine :: [String] -> M.Map String Int -> Int -> String
 -- this edge case never happens tho
 handleLine [] _ _ = ""
 handleLine (x:xs) symbolsMap currentAddress
@@ -74,7 +74,7 @@ handleLine (x:xs) symbolsMap currentAddress
   | otherwise = assembleLine (x:xs) symbolsMap currentAddress
     
 -- Oneliners btw
-secondPass :: [[String]] -> M.Map String Integer -> Integer -> [String] -> String
+secondPass :: [[String]] -> M.Map String Int -> Int -> [String] -> String
 secondPass [] _ _ resultString = concat (reverse resultString)
 secondPass (x:xs) symbolsMap currentAddress resultString = do 
                 let resultLine = handleLine x symbolsMap currentAddress
@@ -84,9 +84,9 @@ main :: IO ()
 main = readLines "sample/basic.asm" >>= \s -> 
     do
         let result = prepareForRead s
-        print result
         let firstAddress = getFirstAddress result
-        let resultingMap = firstPass result M.empty firstAddress
+        print firstAddress
+        let resultingMap = firstPass (tail result) M.empty firstAddress
         print resultingMap
         let resultBinary = secondPass (tail result) resultingMap firstAddress []
         print resultBinary
