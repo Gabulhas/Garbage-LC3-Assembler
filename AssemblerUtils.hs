@@ -4,8 +4,11 @@ module AssemblerUtils (
   immediateValueToInt,
   labelOrOffsetToBinary,
   invalidOperands,
-  trapValueToBin
-
+  trapValueToBin,
+  dirValueToBin,
+  hexToInt,
+  bitExtension,
+  toStringBinary
 ) where
 
 import Numeric (showHex, showIntAtBase)
@@ -64,7 +67,26 @@ trapValueToBin :: String -> String
 trapValueToBin val 
   | head val == '#' = intToSignExt  (immediateValueToInt val) 8
   | head val == 'x' = concatMap hexCharToBin (tail val)
-  | otherwise = error "Not an immediate value nor an hexadecimal value"
+  | otherwise = error ("Not an immediate value nor an hexadecimal value")
+
+
+dirValueToBin :: String -> String
+dirValueToBin val
+  | head val == '#' = intToSignExt  (immediateValueToInt val) 16
+  | head val == 'x' = concatMap hexCharToBin (tail val)
+  | otherwise = error ("Not an immediate value nor an hexadecimal value"++ val)
+
+
+hexToInt :: String -> Int
+hexToInt "" = error "Invalid Hex Value"
+hexToInt val = hexToIntAux val 0
+
+
+
+hexToIntAux :: String -> Int -> Int
+hexToIntAux [] accum = accum
+hexToIntAux xs accum
+    = foldl (\ accum x -> accum * 16 + hexDigitToInt x) accum xs
 
 
 

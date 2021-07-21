@@ -8,8 +8,10 @@ import qualified Data.Map as M
 import qualified Data.Text as T
 import Data.Binary as B
 import Data.Word as W
-import OpTransform (assembleLine)
+import OpTransform (opTransform)
+import DiTransform (diTransform)
 import LookupTables (getOpcode, getRegister, getDirective)
+import AssemblerUtils (dirValueToBin)
 
 
 whiteTextRegex = "[^\\s\"\']+|\"([^\"]*)\"|\'([^\']*)\'\r\n"
@@ -51,10 +53,11 @@ prepareForRead text_lines =
     reverse (clean text_lines [])
 
 
-getFirstAddress :: [[String]] -> Int 
-getFirstAddress [] = -1
-getFirstAddress (x:_) = 
-    read  (tail (x !! 1)) :: Int 
+getOrigin :: [[String]] -> String
+getOrigin ((dir:origin:_):_) 
+  | dir == ".ORIG" = origin
+  | otherwise = error "Invalid Origin Directive"
+getOrigin _ = error "Invalid Origin Directive"
 
 
 firstPass :: [[String]] -> M.Map String Int -> Int -> M.Map String Int 
@@ -71,25 +74,28 @@ handleLine :: [String] -> M.Map String Int -> Int -> String
 -- this edge case never happens tho
 handleLine [] _ _ = ""
 handleLine (x:xs) symbolsMap currentAddress
+  | head x == '.' = diTransform (x:xs)
   | isJust (M.lookup x symbolsMap) = handleLine xs symbolsMap currentAddress 
-  | otherwise = assembleLine (x:xs) symbolsMap currentAddress
+  | otherwise = opTransform (x:xs) symbolsMap currentAddress
     
 -- Oneliners btw
 secondPass :: [[String]] -> M.Map String Int -> Int -> [String] -> String
-secondPass [] _ _ resultString = unwords (reverse resultString)
+secondPass [] _ _ resultString = concat (reverse resultString)
 secondPass (x:xs) symbolsMap currentAddress resultString = do 
                 let resultLine = handleLine x symbolsMap currentAddress
                 secondPass xs symbolsMap (currentAddress + 1) (resultLine : resultString)
+                -- only .END returns ""
+                                    
 
 main :: IO ()
-main = readLines "sample/basic.asm" >>= \s -> 
+main = readLines "sample/2048.asm" >>= \s -> 
     do
         let result = prepareForRead s
-        let firstAddress = getFirstAddress result
-        print firstAddress
+        let origin = getOrigin result
+        let firstAddress = read (tail origin)
+        let initialCode = [dirValueToBin origin]
         let resultingMap = firstPass (tail result) M.empty firstAddress
-        print resultingMap
-        let resultBinary = secondPass (tail result) resultingMap firstAddress []
+        let resultBinary = secondPass (tail result) resultingMap firstAddress initialCode
         print resultBinary
 
 

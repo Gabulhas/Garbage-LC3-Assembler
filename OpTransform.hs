@@ -1,5 +1,5 @@
 module OpTransform(
-    assembleLine
+    opTransform
 ) where
 import AssemblerUtils (intToSignExt, offsetCalculate, immediateValueToInt, labelOrOffsetToBinary, invalidOperands, trapValueToBin)
 import LookupTables (getOpcode, getRegister, getDirective, justGetRegister, justGetOpcode, justGetDirective)
@@ -54,9 +54,9 @@ import qualified Data.Map as M
 
 
 
-assembleLine :: [String] -> M.Map String Int -> Int -> String
-assembleLine [] _ _ = ""
-assembleLine (opcode:operands) symbolsMap currentAddress
+opTransform :: [String] -> M.Map String Int -> Int -> String
+opTransform [] _ _ = ""
+opTransform (opcode:operands) symbolsMap currentAddress
   | opcode ==  "ADD" =   addop operands
   | opcode ==  "AND" =   andop operands 
   | opcode ==  "BR" = brop "111" (last operands) symbolsMap currentAddress
@@ -179,10 +179,3 @@ strop operands _ _ = error (invalidOperands operands)
 trapop :: String -> String
 trapop val =
     "11110000" ++ trapValueToBin val
--- getcop :: [String] -> M.Map String Int -> Int -> String
--- outop :: [String] -> M.Map String Int -> Int -> String
--- putsop :: [String] -> M.Map String Int -> Int -> String
--- inop :: [String] -> M.Map String Int -> Int -> String
--- putspop :: [String] -> M.Map String Int -> Int -> String
--- haltop :: [String] -> M.Map String Int -> Int -> String
-
