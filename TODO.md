@@ -1,3 +1,5 @@
 - [x] OpTransform
-- [] Directives
-- [] Improve labels
+- [x] Directives
+- [x] Improve labels
+- [] Missing pointers
+- [] Labels should be aware of .FILL, .STRINGZ

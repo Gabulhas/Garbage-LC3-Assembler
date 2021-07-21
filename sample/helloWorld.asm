@@ -1,0 +1,10 @@
+.ORIG x3000
+LEA R0 HELLO   
+LD R1 COUNTER  
+LOOP TRAP x22   
+ADD R1 R1 #-1 
+BRP LOOP    
+HALT
+HELLO .STRINGZ "Hello World!\n" 
+COUNTER .FILL #5        
+.END    

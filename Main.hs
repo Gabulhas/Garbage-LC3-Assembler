@@ -9,9 +9,9 @@ import qualified Data.Text as T
 import Data.Binary as B
 import Data.Word as W
 import OpTransform (opTransform)
-import DiTransform (diTransform)
+import DiTransform (diTransform, getDiSize)
 import LookupTables (getOpcode, getRegister, getDirective)
-import AssemblerUtils (dirValueToBin)
+import AssemblerUtils (dirValueToBin, hexToInt)
 
 
 whiteTextRegex = "[^\\s\"\']+|\"([^\"]*)\"|\'([^\']*)\'\r\n"
@@ -50,7 +50,7 @@ clean (x:xs) accum
 prepareForRead :: [String] -> [[String]]
 prepareForRead [] = [[]]
 prepareForRead text_lines = 
-    reverse (clean text_lines [])
+    reverse $ clean text_lines []
 
 
 getOrigin :: [[String]] -> String
@@ -60,14 +60,29 @@ getOrigin ((dir:origin:_):_)
 getOrigin _ = error "Invalid Origin Directive"
 
 
+-- I don't like this :(
+handleLabel :: [String] -> M.Map String Int -> Int -> (M.Map String Int, Int)
+handleLabel [] _ _ = error "Invalid Label"
+handleLabel (label:possibleCode) resultSymbolicMap currentAddress
+  | isJust (getOpcode argHead) = (newMap, currentAddress + 1)
+  | isJust (getDirective argHead) = (newMap, currentAddress + getDiSize possibleCode)
+  | otherwise = (newMap, currentAddress + 1)
+  where newMap = M.insert label currentAddress resultSymbolicMap
+        argHead = head possibleCode
+ 
+
+
+
 firstPass :: [[String]] -> M.Map String Int -> Int -> M.Map String Int 
 firstPass [] resultSymbolicMap _ = resultSymbolicMap
 firstPass (x:xs) resultSymbolicMap currentAddress 
+  | isJust (getDirective currentHead) = firstPass xs resultSymbolicMap (currentAddress + getDiSize x)
   | foundResult = firstPass xs resultSymbolicMap (currentAddress + 1)
   | otherwise  = do 
-                firstPass xs (M.insert currentHead currentAddress resultSymbolicMap) (currentAddress + 1)
+      let (newMap, newAddress) = handleLabel x resultSymbolicMap currentAddress
+      firstPass xs newMap newAddress
   where currentHead = head x
-        foundResult = isJust (getOpcode currentHead) || isJust (getDirective currentHead)
+        foundResult = isJust (getOpcode currentHead)
 
 
 handleLine :: [String] -> M.Map String Int -> Int -> String
@@ -88,13 +103,16 @@ secondPass (x:xs) symbolsMap currentAddress resultString = do
                                     
 
 main :: IO ()
-main = readLines "sample/2048.asm" >>= \s -> 
+main = readLines "sample/helloWorld.asm" >>= \s -> 
     do
         let result = prepareForRead s
+        print result
         let origin = getOrigin result
-        let firstAddress = read (tail origin)
+        -- change read to hexToInt 
+        let firstAddress = read $ tail origin
         let initialCode = [dirValueToBin origin]
         let resultingMap = firstPass (tail result) M.empty firstAddress
+        print resultingMap
         let resultBinary = secondPass (tail result) resultingMap firstAddress initialCode
         print resultBinary
 

@@ -24,15 +24,24 @@ immediateValueToInt (x:xs)
   | x == '#' = read xs
   | otherwise = 0
 
-
 offsetCalculate :: Int -> Int -> Int
-offsetCalculate labelAdd currentAdd =
-    labelAdd - currentAdd - 1
+offsetCalculate labelAdd currentAdd = do
+    if labelAdd > currentAdd then labelAdd - currentAdd - 1
+                             else  (-1) * ( currentAdd + 1 - labelAdd)
 
+
+labelOrOffsetToBinary :: String -> M.Map String Int -> Int -> Int -> String
+labelOrOffsetToBinary val symbolsMap currentAddress extension
+  | head val == '#' = intToSignExt  (immediateValueToInt val) extension
+  | Just resultAddress <- M.lookup val symbolsMap =  intToSignExt (offsetCalculate resultAddress currentAddress) extension
+  | otherwise = error "Not an offset nor a label"
 
 intToSignExt :: Int -> Int -> String
 intToSignExt value toSize
-  | value < 0 = bitExtension (toStringBinary (complement value + 1)) toSize '1'
+  -- wtf is this????????
+  -- so, to SignExtend with the size X a negative value, you just need to do 2^X + value
+  -- spent hours on this bug (;¬_¬)
+  | value < 0 = toStringBinary (2^toSize +  value)
   | otherwise  = bitExtension (toStringBinary value) toSize '0'
 
 
@@ -52,13 +61,6 @@ toStringBinary :: Int -> String
 toStringBinary x = showIntAtBase 2 intToDigit x ""
 
 
-
-labelOrOffsetToBinary :: String -> M.Map String Int -> Int -> Int -> String
-labelOrOffsetToBinary val symbolsMap currentAddress extension
-  | head val == '#' = intToSignExt  (immediateValueToInt val) extension
-  | Just resultAddress <- M.lookup val symbolsMap =  intToSignExt (offsetCalculate resultAddress currentAddress) extension
-  | otherwise = error "Not an offset nor a label"
-
 invalidOperands :: [String] -> String
 invalidOperands operands = "Invalid operands " ++ unwords operands
 
@@ -67,7 +69,7 @@ trapValueToBin :: String -> String
 trapValueToBin val 
   | head val == '#' = intToSignExt  (immediateValueToInt val) 8
   | head val == 'x' = concatMap hexCharToBin (tail val)
-  | otherwise = error ("Not an immediate value nor an hexadecimal value")
+  | otherwise = error ("Not an immediate value nor an hexadecimal value"++ val)
 
 
 dirValueToBin :: String -> String
@@ -104,3 +106,5 @@ hexDigitToInt x
   | x == 'E' = 14
   | x == 'F' = 15
   | otherwise = digitToInt  x :: Int
+
+
