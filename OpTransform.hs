@@ -1,9 +1,10 @@
 module OpTransform(
     opTransform
 ) where
-import AssemblerUtils (intToSignExt, offsetCalculate, immediateValueToInt, labelOrOffsetToBinary, invalidOperands, trapValueToBin)
+import AssemblerUtils (intToSignExt, offsetCalculate, immediateValueToInt, labelOrOffsetToBinary, invalidOperands, trapValueToBin, literalValueToBinExtended)
 import LookupTables (getOpcode, getRegister, getDirective, justGetRegister, justGetOpcode, justGetDirective)
 import Data.Bits 
+import Data.Char (toUpper)
 import qualified Data.Map as M
 
 -- The LC-3 ISA, from "Appendix A", available at:
@@ -57,38 +58,38 @@ import qualified Data.Map as M
 opTransform :: [String] -> M.Map String Int -> Int -> String
 opTransform [] _ _ = ""
 opTransform (opcode:operands) symbolsMap currentAddress
-  | opcode ==  "ADD" =   addop operands
-  | opcode ==  "AND" =   andop operands 
-  | opcode ==  "BR" = brop "111" (last operands) symbolsMap currentAddress
-  | opcode ==  "BRN" = brop "100" (last operands) symbolsMap currentAddress
-  | opcode ==  "BRNP" = brop "101" (last operands) symbolsMap currentAddress
-  | opcode ==  "BRNZ" = brop "110" (last operands) symbolsMap currentAddress
-  | opcode ==  "BRNZP" = brop "111" (last operands) symbolsMap currentAddress
-  | opcode ==  "BRP" = brop "001" (last operands) symbolsMap currentAddress
-  | opcode ==  "BRZ" = brop "010" (last operands) symbolsMap currentAddress
-  | opcode ==  "BRZP" = brop "011" (last operands) symbolsMap currentAddress
-  | opcode ==  "JMP" =   jmpop (head operands) 
-  | opcode ==  "RET" =   "1100000111000000"
-  | opcode ==  "JSR" =  jsrop (head operands) symbolsMap currentAddress
-  | opcode ==  "JSRR" =  jsrrop (head operands)
-  | opcode ==  "LD" =    ldop operands symbolsMap currentAddress
-  | opcode ==  "LDI" =   ldiop operands symbolsMap currentAddress
-  | opcode ==  "LDR" =   ldrop operands symbolsMap currentAddress
-  | opcode ==  "LEA" =   leaop operands symbolsMap currentAddress
-  | opcode ==  "NOT" =   notop operands 
-  | opcode ==  "RTI" =   "1000000000000000"
-  | opcode ==  "ST" =    stop operands symbolsMap currentAddress
-  | opcode ==  "STI" =   stiop operands symbolsMap currentAddress
-  | opcode ==  "STR" =   strop operands symbolsMap currentAddress
-  | opcode ==  "TRAP" =  trapop (head operands)
-  | opcode ==  "GETC" =  trapop "x20"
-  | opcode ==  "OUT" =   trapop "x21"
-  | opcode ==  "PUTS" =  trapop "x22"
-  | opcode ==  "IN" =    trapop "x23"
-  | opcode ==  "PUTSP" = trapop "x24"
-  | opcode ==  "HALT" =  trapop "x25"
-  | opcode ==  "NONE" =  "1101"
+  | opcodeUpper ==  "ADD" =   addop operands
+  | opcodeUpper ==  "AND" =   andop operands 
+  | opcodeUpper ==  "BR" = brop "111" (last operands) symbolsMap currentAddress
+  | opcodeUpper ==  "BRN" = brop "100" (last operands) symbolsMap currentAddress
+  | opcodeUpper ==  "BRNP" = brop "101" (last operands) symbolsMap currentAddress
+  | opcodeUpper ==  "BRNZ" = brop "110" (last operands) symbolsMap currentAddress
+  | opcodeUpper ==  "BRNZP" = brop "111" (last operands) symbolsMap currentAddress
+  | opcodeUpper ==  "BRP" = brop "001" (last operands) symbolsMap currentAddress
+  | opcodeUpper ==  "BRZ" = brop "010" (last operands) symbolsMap currentAddress
+  | opcodeUpper ==  "BRZP" = brop "011" (last operands) symbolsMap currentAddress
+  | opcodeUpper ==  "JMP" =   jmpop (head operands) 
+  | opcodeUpper ==  "RET" =   "1100000111000000"
+  | opcodeUpper ==  "JSR" =  jsrop (head operands) symbolsMap currentAddress
+  | opcodeUpper ==  "JSRR" =  jsrrop (head operands)
+  | opcodeUpper ==  "LD" =    ldop operands symbolsMap currentAddress
+  | opcodeUpper ==  "LDI" =   ldiop operands symbolsMap currentAddress
+  | opcodeUpper ==  "LDR" =   ldrop operands symbolsMap currentAddress
+  | opcodeUpper ==  "LEA" =   leaop operands symbolsMap currentAddress
+  | opcodeUpper ==  "NOT" =   notop operands 
+  | opcodeUpper ==  "RTI" =   "1000000000000000"
+  | opcodeUpper ==  "ST" =    stop operands symbolsMap currentAddress
+  | opcodeUpper ==  "STI" =   stiop operands symbolsMap currentAddress
+  | opcodeUpper ==  "STR" =   strop operands symbolsMap currentAddress
+  | opcodeUpper ==  "TRAP" =  trapop (head operands)
+  | opcodeUpper ==  "GETC" =  trapop "x20"
+  | opcodeUpper ==  "OUT" =   trapop "x21"
+  | opcodeUpper ==  "PUTS" =  trapop "x22"
+  | opcodeUpper ==  "IN" =    trapop "x23"
+  | opcodeUpper ==  "PUTSP" = trapop "x24"
+  | opcodeUpper ==  "HALT" =  trapop "x25" | opcode ==  "NONE" =  "1101"
   | otherwise = error ("Invalid opcode '"  ++ opcode ++ "'")
+ where opcodeUpper = map toUpper opcode
 
 
 addop :: [String] -> String
@@ -98,7 +99,7 @@ addop operands
   | Just resultRegister <- getRegister lastOperand = do
       firstPart ++ "000" ++ resultRegister
   | otherwise = do
-      firstPart ++ "1" ++  intToSignExt (immediateValueToInt lastOperand) 5
+      firstPart ++ "1" ++  literalValueToBinExtended lastOperand 5
   where lastOperand = last operands
         (dr:sr1:_) = operands 
         firstPart = "0001" ++ justGetRegister dr ++ justGetRegister sr1
@@ -110,7 +111,7 @@ andop operands
   | Just resultRegister <- getRegister lastOperand = do
       firstPart ++ "000" ++ resultRegister
   | otherwise = do
-      firstPart ++ "1" ++ intToSignExt (immediateValueToInt lastOperand) 5
+      firstPart ++ "1" ++ literalValueToBinExtended lastOperand 5
   where lastOperand = last operands
         (dr:sr1:_) = operands 
         firstPart = "0101" ++ justGetRegister dr ++ justGetRegister sr1

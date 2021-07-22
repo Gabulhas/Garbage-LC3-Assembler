@@ -8,7 +8,8 @@ module AssemblerUtils (
   dirValueToBin,
   hexToInt,
   bitExtension,
-  toStringBinary
+  toStringBinary,
+  literalValueToBinExtended
 ) where
 
 import Numeric (showHex, showIntAtBase)
@@ -32,9 +33,10 @@ offsetCalculate labelAdd currentAdd = do
 
 labelOrOffsetToBinary :: String -> M.Map String Int -> Int -> Int -> String
 labelOrOffsetToBinary val symbolsMap currentAddress extension
-  | head val == '#' = intToSignExt  (immediateValueToInt val) extension
+  | currentHead == '#' || currentHead == 'x' || currentHead == 'X' = literalValueToBinExtended val extension
   | Just resultAddress <- M.lookup val symbolsMap =  intToSignExt (offsetCalculate resultAddress currentAddress) extension
   | otherwise = error "Not an offset nor a label"
+  where currentHead = head val
 
 intToSignExt :: Int -> Int -> String
 intToSignExt value toSize
@@ -66,17 +68,18 @@ invalidOperands operands = "Invalid operands " ++ unwords operands
 
 
 trapValueToBin :: String -> String 
-trapValueToBin val 
-  | head val == '#' = intToSignExt  (immediateValueToInt val) 8
-  | head val == 'x' = concatMap hexCharToBin (tail val)
-  | otherwise = error ("Not an immediate value nor an hexadecimal value"++ val)
+trapValueToBin val = literalValueToBinExtended val 8
 
 
 dirValueToBin :: String -> String
-dirValueToBin val
-  | head val == '#' = intToSignExt  (immediateValueToInt val) 16
-  | head val == 'x' = concatMap hexCharToBin (tail val)
+dirValueToBin val = literalValueToBinExtended val 16
+
+literalValueToBinExtended :: String -> Int ->String
+literalValueToBinExtended val extension
+  | currentHead == '#' = intToSignExt  (immediateValueToInt val) extension
+  | currentHead == 'x' || currentHead == 'X' = intToSignExt (hexToInt (tail val)) extension
   | otherwise = error ("Not an immediate value nor an hexadecimal value"++ val)
+  where currentHead = head val
 
 
 hexToInt :: String -> Int

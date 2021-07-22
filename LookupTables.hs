@@ -11,6 +11,7 @@ module LookupTables(
 ) where
 
 import qualified Data.Map as M
+import Data.Char (toUpper)
 
 -- Lookup tables
 
@@ -75,7 +76,7 @@ getRegister :: String -> Maybe String
 getRegister key = M.lookup key registersMap
 
 getOpcode :: String -> Maybe String 
-getOpcode key = M.lookup key opcodesMap
+getOpcode key = M.lookup (map toUpper key) opcodesMap
 
 getDirective :: String -> Maybe String 
 getDirective key = M.lookup key directivesMap
@@ -88,7 +89,7 @@ justGetRegister key
 
 justGetOpcode :: String -> String
 justGetOpcode key 
-  | Just val <- getOpcode key = val
+  | Just val <- getOpcode (map toUpper key)= val
   | otherwise = error "Could not find Opcode"
 
 justGetDirective :: String -> String
