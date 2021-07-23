@@ -73,6 +73,7 @@ getDiSize [di] = 0
 getDiSize (di:argument) 
   | di == ".BLKW" =  2 * calculateBLKWsize argument
   | di == ".STRINGZ"  =  calculateSTRINGZsize argument
+  | di == ".FILL" = 1
   | otherwise = 0
 
 

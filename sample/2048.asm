@@ -1,7 +1,5 @@
 ;--------------------------------------------------------------------------
-;
-; Program: 2048.asm
-; Final Project
+; Program: 2048.asm Final Project
 ; Name: Ryan Pendleton
 ; Class: CS2810
 ; Date: 5 Dec 2014

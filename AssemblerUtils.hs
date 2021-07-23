@@ -28,14 +28,14 @@ immediateValueToInt (x:xs)
 offsetCalculate :: Int -> Int -> Int
 offsetCalculate labelAdd currentAdd = do
     if labelAdd > currentAdd then labelAdd - currentAdd - 1
-                             else  (-1) * ( currentAdd + 1 - labelAdd)
+                             else  (-1) * (currentAdd - labelAdd + 1)
 
 
 labelOrOffsetToBinary :: String -> M.Map String Int -> Int -> Int -> String
 labelOrOffsetToBinary val symbolsMap currentAddress extension
   | currentHead == '#' || currentHead == 'x' || currentHead == 'X' = literalValueToBinExtended val extension
   | Just resultAddress <- M.lookup val symbolsMap =  intToSignExt (offsetCalculate resultAddress currentAddress) extension
-  | otherwise = error "Not an offset nor a label"
+  | otherwise = error ("Not an offset nor a label " ++ val)
   where currentHead = head val
 
 intToSignExt :: Int -> Int -> String

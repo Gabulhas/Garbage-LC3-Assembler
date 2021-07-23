@@ -59,31 +59,30 @@ getOrigin _ = error "Invalid Origin Directive"
 
 
 -- I don't like this :(
-handleLabel :: [String] -> M.Map String Int -> Int -> (M.Map String Int, Int)
+handleLabel :: [String] -> M.Map String Int -> Int -> Int
 handleLabel [] _ _ = error "Invalid Label"
-handleLabel [label] resultSymbolicMap currentAddress = (M.insert label currentAddress resultSymbolicMap, currentAddress + 1)
+handleLabel [label] resultSymbolicMap currentAddress = currentAddress
 
 handleLabel (label:possibleCode) resultSymbolicMap currentAddress
-  | isJust (getOpcode argHead) = (newMap, currentAddress + 1)
-  | isJust (getDirective argHead) = (newMap, currentAddress + getDiSize possibleCode)
-  | otherwise = (newMap, currentAddress + 1)
-  where newMap = M.insert label currentAddress resultSymbolicMap
+  | isJust (getOpcode argHead) = currentAddress + 1
+  | isJust (getDirective argHead) = currentAddress + getDiSize possibleCode
+  | otherwise = currentAddress
+  where 
         argHead = head possibleCode
 
+-- TOFIX
 firstPass :: [[String]] -> M.Map String Int -> Int -> M.Map String Int 
 firstPass [] resultSymbolicMap _ = resultSymbolicMap
 firstPass ([]:xs) _ _ = error "Invalid Opcode"
 firstPass (("":a):xs) _ _ = error "Invalid Opcode"
 firstPass (x:xs) resultSymbolicMap currentAddress 
   | isJust (getDirective currentHead) = firstPass xs resultSymbolicMap (currentAddress + getDiSize x)
-  | foundResult = firstPass xs resultSymbolicMap (currentAddress + 1)
+  | isJust (getOpcode currentHead) = firstPass xs resultSymbolicMap (currentAddress + 1)
   | otherwise  = do 
-      let (newMap, newAddress) = handleLabel x resultSymbolicMap currentAddress
+      let newAddress = handleLabel x resultSymbolicMap currentAddress
+      let newMap = M.insert (head x) currentAddress resultSymbolicMap
       firstPass xs newMap newAddress
   where currentHead = head x
-        
-        foundResult = isJust (getOpcode currentHead)
-
 
 handleLine :: [String] -> M.Map String Int -> Int -> String
 -- this edge case never happens tho
@@ -96,24 +95,23 @@ handleLine (x:xs) symbolsMap currentAddress
 
 secondPass :: [[String]] -> M.Map String Int -> Int -> [String] -> String
 secondPass [] _ _ resultString = concat (reverse resultString)
-secondPass (x:xs) symbolsMap currentAddress resultString = do 
+secondPass (x:xs) symbolsMap currentAddress resultString
+    | isJust (M.lookup (head x) symbolsMap) && null (tail x)  = secondPass xs symbolsMap currentAddress resultString
+    | otherwise = do
                 let resultLine = handleLine x symbolsMap currentAddress
-                -- TODO: remove, is temporary
-                if mod (length resultLine) 16 == 0 then secondPass xs symbolsMap (currentAddress + 1) (resultLine : resultString)
-                                                   else error ("\nINVALID NUMBER OF CHARS AT" ++ unwords x)
-                -- only .END returns ""
-                                    
+                secondPass xs symbolsMap (currentAddress + 1) (resultLine : resultString)
+-- TOFIX
 
 main :: IO ()
-main = readLines "sample/rogue.asm" >>= \s -> 
+main = readLines "sample/2048.asm" >>= \s -> 
     do
         let result = prepareForRead s
         let origin = getOrigin result
-        print result
         -- change read to hexToInt 
         let firstAddress = hexToInt $ tail origin
         let initialCode = [dirValueToBin origin]
         let resultingMap = firstPass (tail result) M.empty firstAddress
+        print resultingMap
         let resultBinary = secondPass (tail result) resultingMap firstAddress initialCode
         print resultBinary
 
