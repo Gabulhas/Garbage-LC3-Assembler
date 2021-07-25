@@ -1,17 +1,22 @@
+import AssemblerUtils (dirValueToBin, hexToInt)
+import Data.Binary as B
 import Data.Char (intToDigit)
 import Data.List
-import Data.Maybe (isJust)
+import Data.ByteString as BS  (ByteString, writeFile)
+import qualified Data.ByteString.Char8 as BT
+import Data.Maybe (isJust) 
+import Data.Word as W
+import DiTransform (diTransform, getDiSize)
+import LookupTables (getOpcode, getRegister, getDirective)
 import Numeric (showHex, showIntAtBase)
+import OpTransform (opTransform)
+import System.Environment (getArgs)
+import Data.Text.Encoding (encodeUtf8)
 import Text.Printf
 import Text.Regex.PCRE as R
 import qualified Data.Map as M
 import qualified Data.Text as T
-import Data.Binary as B
-import Data.Word as W
-import OpTransform (opTransform)
-import DiTransform (diTransform, getDiSize)
-import LookupTables (getOpcode, getRegister, getDirective)
-import AssemblerUtils (dirValueToBin, hexToInt)
+
 
 
 whiteTextRegex = "[^\\s\"\']+|\"([^\"]*)\"|\'([^\']*)\'\r\n"
@@ -102,17 +107,36 @@ secondPass (x:xs) symbolsMap currentAddress resultString
                 secondPass xs symbolsMap (currentAddress + 1) (resultLine : resultString)
 -- TOFIX
 
-main :: IO ()
-main = readLines "sample/2048.asm" >>= \s -> 
-    do
-        let result = prepareForRead s
+
+assemblePipeLine :: [String] -> String
+assemblePipeLine textLines = do
+        let result = prepareForRead textLines
         let origin = getOrigin result
         -- change read to hexToInt 
         let firstAddress = hexToInt $ tail origin
         let initialCode = [dirValueToBin origin]
         let resultingMap = firstPass (tail result) M.empty firstAddress
-        print resultingMap
-        let resultBinary = secondPass (tail result) resultingMap firstAddress initialCode
-        print resultBinary
+        secondPass (tail result) resultingMap firstAddress initialCode
 
 
+packStr'' :: String -> BS.ByteString
+packStr'' = encodeUtf8 . T.pack
+
+assembleFile :: String -> String -> IO ()
+assembleFile fileName outfile= readLines fileName >>= \s -> do
+        BS.writeFile outfile (packStr'' (assemblePipeLine s))
+
+
+handleArgs :: [String] -> IO ()
+handleArgs [] = printf  "%s\n" "Error. Usage: assembler INFILE [OUTFILE] or assembler INFILE"
+
+handleArgs (infile:xs) = do
+    let outfile = if null xs then "OUT.BIN" else head xs
+    assembleFile infile outfile
+
+
+
+main :: IO ()
+main = do
+    args <- getArgs
+    handleArgs args

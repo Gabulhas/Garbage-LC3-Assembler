@@ -2,4 +2,4 @@
 - [x] Directives
 - [x] Improve labels
 - [] Missing pointers
-- [] Labels should be aware of .FILL, .STRINGZ
+- [x] Labels should be aware of .FILL, .STRINGZ
