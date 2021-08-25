@@ -26,8 +26,8 @@ readLines :: FilePath -> IO [String]
 readLines = fmap lines . readFile 
 
 
-cleanAndSplit :: String -> [String]
-cleanAndSplit cLine = R.getAllTextMatches (cLine =~ whiteTextRegex)
+splitOnSpace :: String -> [String]
+splitOnSpace cLine = R.getAllTextMatches (cLine =~ whiteTextRegex)
 
 
 removeCommentsAndEmpty :: [String] -> [String]
@@ -48,7 +48,7 @@ clean [] accum = accum
 clean (x:xs) accum
     | null result = clean xs accum
     | otherwise = clean xs (result : accum)
-    where result = removeCommentsAndEmpty (cleanAndSplit x)
+    where result = removeCommentsAndEmpty (splitOnSpace x)
 
 prepareForRead :: [String] -> [[String]]
 prepareForRead [] = [[]]
@@ -61,7 +61,6 @@ getOrigin ((dir:origin:_):_)
   | dir == ".ORIG" = origin
   | otherwise = error "Invalid Origin Directive"
 getOrigin _ = error "Invalid Origin Directive"
-
 
 -- I don't like this :(
 handleLabel :: [String] -> M.Map String Int -> Int -> Int
@@ -93,7 +92,7 @@ handleLine :: [String] -> M.Map String Int -> Int -> String
 -- this edge case never happens tho
 handleLine [] _ _ = ""
 handleLine (x:xs) symbolsMap currentAddress
-  | head x == '.' = diTransform (x:xs)
+  | head x == '.' = diTransform (x:xs) symbolsMap
   | isJust (M.lookup x symbolsMap) = handleLine xs symbolsMap currentAddress 
   | otherwise = opTransform (x:xs) symbolsMap currentAddress
     

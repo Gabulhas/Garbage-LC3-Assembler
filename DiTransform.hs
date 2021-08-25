@@ -4,22 +4,26 @@ module DiTransform (
 ) where
 import AssemblerUtils (dirValueToBin, hexToInt, bitExtension, toStringBinary)
 import Data.Char (ord, readLitChar)
+import qualified Data.Map as M
 
-diTransform :: [String] -> String
-diTransform (di:arguments) 
+
+diTransform :: [String] -> M.Map String Int -> String
+diTransform (di:arguments) symbolsMap
   | di == ".END" = ""
-  | di == ".FILL" = filld arguments
+  | di == ".FILL" = filld arguments symbolsMap
   | di == ".BLKW" = blkw arguments
   | di == ".STRINGZ" = stringz arguments
   | otherwise = error ("Invalid directive " ++ di)
 
-diTransform di = error ("Invalid directive " ++ unwords di)
+diTransform di _ = error ("Invalid directive " ++ unwords di)
 
 
-filld :: [String] -> String
-filld [] = error "FILL requires at least one argument."
-filld (argument:_) = 
-    dirValueToBin argument
+filld :: [String] -> M.Map String Int -> String
+filld [] _ = error "FILL requires at least one argument."
+filld (argument:_) symbolsMap
+  -- This could be changed, but looks simpler this way
+  | Just resultAddress <- M.lookup argument symbolsMap = dirValueToBin ("#" ++ show resultAddress)
+  | otherwise = dirValueToBin argument
 
 
 blkw :: [String] -> String
