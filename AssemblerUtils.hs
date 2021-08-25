@@ -54,7 +54,7 @@ repeateChar myChar ammount
 
 bitExtension :: String -> Int -> Char -> String
 bitExtension value toSize charToAdd
-  | toAdd < 0 = error "Wrong extension size"
+  | toAdd < 0 = error (show value ++ "<->" ++ show toSize ++ " Wrong extension size")
   | otherwise = repeateChar charToAdd toAdd  ++ value
   where toAdd = toSize - length value
 

@@ -14,6 +14,7 @@ import System.Environment (getArgs)
 import Data.Text.Encoding (encodeUtf8)
 import Text.Printf
 import Text.Regex.PCRE as R
+import Debug.Trace
 import qualified Data.Map as M
 import qualified Data.Text as T
 
@@ -100,7 +101,7 @@ handleLine (x:xs) symbolsMap currentAddress
 secondPass :: [[String]] -> M.Map String Int -> Int -> [String] -> String
 secondPass [] _ _ resultString = concat (reverse resultString)
 secondPass (x:xs) symbolsMap currentAddress resultString
-    | isJust (M.lookup (head x) symbolsMap) && null (tail x)  = secondPass xs symbolsMap currentAddress resultString
+    | isJust (M.lookup (head x) symbolsMap) && null (tail x)  =  secondPass xs symbolsMap currentAddress resultString
     | otherwise = do
                 let resultLine = handleLine x symbolsMap currentAddress
                 secondPass xs symbolsMap (currentAddress + 1) (resultLine : resultString)
@@ -112,7 +113,7 @@ assemblePipeLine textLines = do
         let result = prepareForRead textLines
         let origin = getOrigin result
         -- change read to hexToInt 
-        let firstAddress = hexToInt $ tail origin
+        let firstAddress = if head origin == 'x' then hexToInt $ tail origin else read (tail origin)
         let initialCode = [dirValueToBin origin]
         let resultingMap = firstPass (tail result) M.empty firstAddress
         secondPass (tail result) resultingMap firstAddress initialCode

@@ -2,8 +2,9 @@ module DiTransform (
     diTransform,
     getDiSize
 ) where
-import AssemblerUtils (dirValueToBin, hexToInt, bitExtension, toStringBinary)
+import AssemblerUtils (dirValueToBin, hexToInt, bitExtension, toStringBinary, intToSignExt)
 import Data.Char (ord, readLitChar)
+import Debug.Trace
 import qualified Data.Map as M
 
 
@@ -22,7 +23,7 @@ filld :: [String] -> M.Map String Int -> String
 filld [] _ = error "FILL requires at least one argument."
 filld (argument:_) symbolsMap
   -- This could be changed, but looks simpler this way
-  | Just resultAddress <- M.lookup argument symbolsMap = dirValueToBin ("#" ++ show resultAddress)
+  | Just resultAddress <- M.lookup argument symbolsMap = intToSignExt resultAddress 16
   | otherwise = dirValueToBin argument
 
 
